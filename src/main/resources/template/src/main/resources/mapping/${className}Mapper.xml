@@ -1,0 +1,131 @@
+<#include "/macro.include"/>
+<#assign className = table.className>
+<#assign classNameFirstLower = table.classNameFirstLower>
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<#macro mapperEl value>${r"#{"}${value}}</#macro>
+<mapper namespace="${basepackage}.dao.${className}Dao">
+
+	<resultMap id="${className}Map" type="${basepackage}.model.${className}">
+	<#list table.columns as column>
+		<#if column.pk>
+		<id property="${column.columnNameLower}" column="${column.sqlName}" jdbcType="${column.jdbcSqlTypeName}"/>
+		<#else>
+		<result property="${column.columnNameLower}" column="${column.sqlName}" jdbcType="${column.jdbcSqlTypeName}"/>
+		</#if>
+	</#list>
+	</resultMap>
+
+	<!-- 用于select查询公用抽取的列 -->
+	<sql id="columns">
+	<#list table.columns as column>
+		${column.sqlName} <#if column_has_next>,</#if>
+	</#list>
+	</sql>
+
+	<#if (table.pkColumns)?size gt 1 >
+	<select id="findByPK" resultMap="${className}Map">
+		SELECT
+			<include refid="columns" />
+		FROM
+			${table.sqlName}
+		WHERE
+		<#list table.pkColumns as column>
+			${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next> AND </#if>
+		</#list>
+	</select>
+	<#elseif (table.pkColumns)?size == 1 >
+	<select id="findBy${table.pkColumn.columnName}" resultMap="${className}Map" parameterType="${table.pkColumn.simpleJavaType}">
+		SELECT
+			<include refid="columns" />
+		FROM
+			${table.sqlName}
+		WHERE
+			${table.pkColumn.sqlName} = <@mapperEl "${table.pkColumn.columnNameFirstLower},jdbcType=${table.pkColumn.jdbcSqlTypeName}"/>
+	</select>
+	</#if>
+
+	<insert id="insert" parameterType="${basepackage}.model.${className}">
+		INSERT INTO ${table.sqlName}(
+		<#list table.columns as column>
+			${column.sqlName}<#if column_has_next>, </#if>
+		</#list>
+		)
+		VALUES (
+		<#list table.columns as column>
+			<@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next>, </#if>
+		</#list>
+		)
+	</insert>
+
+	<insert id="insertSelective" parameterType="${basepackage}.model.${className}">
+		INSERT INTO ${table.sqlName}(
+		<trim prefix="(" suffix=")" suffixOverrides=",">
+		<#list table.columns as column>
+		<if test="${column.columnNameFirstLower} != null">
+			${column.sqlName},
+		</if>
+		</#list>
+		</trim>
+		<trim prefix="values (" suffix=")" suffixOverrides=",">
+		<#list table.columns as column>
+		<if test="${column.columnNameFirstLower} != null">
+			<@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/>,
+		</if>
+		</#list>
+		</trim>
+	</insert>
+
+	<#if (table.pkColumns)?size gt 1 >
+	<select id="deleteByPK" parameterType="${table.pkColumn.simpleJavaType}">
+		DELETE FROM
+			${table.sqlName}
+		WHERE
+		<#list table.pkColumns as column>
+			${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next> AND </#if>
+		</#list>
+		</select>
+	<#elseif (table.pkColumns)?size == 1 >
+	<delete id="deleteBy${table.pkColumn.columnName}" parameterType="${table.pkColumn.simpleJavaType}" >
+		DELETE FROM
+			${table.sqlName}
+		WHERE
+			${table.pkColumn.sqlName} = <@mapperEl "${table.pkColumn.columnNameFirstLower},jdbcType=${table.pkColumn.jdbcSqlTypeName}"/>
+	</delete>
+	</#if>
+
+	<update id="update" parameterType="${basepackage}.model.${className}">
+		UPDATE
+			${table.sqlName}
+		SET
+		<#list table.notPkColumns as column>
+			${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next>, </#if>
+		</#list>
+		WHERE
+		<#list table.pkColumns as column>
+			${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next> AND </#if>
+		</#list>
+	</update>
+
+	<update id="updateSelective" parameterType="${basepackage}.model.${className}">
+		UPDATE
+			${table.sqlName}
+		<set>
+			<#list table.notPkColumns as column>
+			<if test="${column.columnNameFirstLower} != null">
+				${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/>,
+			</if>
+		</#list>
+		</set>
+		WHERE
+		<#list table.pkColumns as column>
+			${column.sqlName} = <@mapperEl "${column.columnNameFirstLower},jdbcType=${column.jdbcSqlTypeName}"/><#if column_has_next> AND </#if>
+		</#list>
+	</update>
+
+	<select id="count" resultType="java.lang.Long">
+		SELECT
+			count(1)
+		FROM ${table.sqlName}
+	</select>
+</mapper>
